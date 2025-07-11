@@ -1,0 +1,10 @@
+branch-defaults:
+  default:
+    environment: wse-assignment3-env
+global:
+  application_name: wse-assignment3
+  default_region: us-east-1
+  profile: null
+  sc: null
+  instance_profile: aws-elasticbeanstalk-ec2-profile
+
