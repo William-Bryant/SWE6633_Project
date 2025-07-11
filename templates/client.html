@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WSE Assignment 2</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+    <h1 class="mt-4">Assignment 2: CRUD Operations</h1>
+    <h2 class="mt-4">Employee Records in Database:</h2>
+    <table id="fields-table" class="table table-bordered table-striped">
+        <thead class="thead-dark" > <!-- Table Header to label all the columns-->
+        <tr>
+            <th>Name</th>
+            <th>Occupation</th>
+            <th>Hire Date</th>
+            <th>Salary</th>
+            <th>Employed</th>
+            <th>DB Actions</th>
+        </tr>
+        </thead>
+        <tbody id="fields-import">
+        <!-- Fields will be populated here with data from the DB-->
+        </tbody>
+    </table>
+
+    <!-- Form for the table fields that will call the /add endpoint after the 'Add' button is hit.-->
+    <h2 class="mt-4">Add New Employee:</h2>
+    <form action="/add" method="post" class="form-inline">
+        <div class="form-group mb-2">
+            <input type="text" id="name" name="name" class="form-control" placeholder="Name">
+        </div>
+        <div class="form-group mx-sm-3 mb-2">
+            <input type="text" id="occupation" name="occupation" class="form-control" placeholder="Occupation">
+        </div>
+        <div class="form-group mb-2">
+            <input type="date" id="hire_date" name="hire_date" class="form-control">
+        </div>
+        <div class="form-group mx-sm-3 mb-2">
+            <input type="number" id="salary" name="salary" class="form-control" placeholder="Salary">
+        </div>
+        <div class="form-group mb-2">
+            <div class="form-check">
+                <input type="checkbox" id="employed" name="employed" class="form-check-input" value="true" checked>
+                <label class="form-check-label" for="employed">Employed</label>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary mb-2">Add</button>
+    </form>
+</div>
+
+<script>
+    // Gets the employee field data from database.db and populates the top level table of existing employees.
+    // Was trying to make this a function, but I only need this at load time I think, as the page refreshes after any CRUD operation, so fetch is easier.
+    fetch('/fields')
+        .then(response => response.json())
+        .then(data => {
+            const fieldsTable = document.getElementById('fields-import');
+            // For each loop to add each field as a row in the HTML table.
+            data.fields.forEach(field => {
+                const tr = document.createElement('tr');
+                tr.id = `field-${field.id}`;
+
+                const nameTd = document.createElement('td');
+                nameTd.textContent = field.name;
+                tr.appendChild(nameTd);
+
+                const occupationTd = document.createElement('td');
+                occupationTd.textContent = field.occupation;
+                tr.appendChild(occupationTd);
+
+                const hireDateTd = document.createElement('td');
+                hireDateTd.textContent = field.hire_date;
+                tr.appendChild(hireDateTd);
+
+                const salaryTd = document.createElement('td');
+                salaryTd.textContent = field.salary;
+                tr.appendChild(salaryTd);
+
+                const employedTd = document.createElement('td');
+                employedTd.textContent = field.employed ? 'Employed' : 'Not Employed';
+                tr.appendChild(employedTd);
+
+                // Buttons TD is bulkier because there's two separate elements in it.
+                const buttonsTd = document.createElement('td');
+                const editButton = document.createElement('button');
+                editButton.textContent = 'Edit';
+                editButton.setAttribute('onclick', `editField(${field.id})`);
+                buttonsTd.appendChild(editButton);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.setAttribute('onclick', `deleteField(${field.id})`);
+                buttonsTd.appendChild(deleteButton);
+
+                tr.appendChild(buttonsTd);
+                fieldsTable.appendChild(tr);
+            });
+        });
+
+    // This function isn't actually the PUT operation, it's just modifying the selected row to allow for editing its fields in the live HTML.
+    function editField(id) {
+        const tr = document.getElementById(`field-${id}`); // find the rows from fetch that show up in tbody.
+        const td_list = tr.querySelectorAll('td'); // get all the td elements from the row.
+
+        const fieldValues = [];
+        td_list.forEach((td, index) => { if (index < 5) {fieldValues.push(td.innerText);}});
+
+        // Modify the HTML to change the row that was selected into input fields for editing.
+        // Doing innerHTML here since it's a bit simpler than brute-force changing each element like I was creating them in the fetch.
+        tr.innerHTML = `
+            <td><input type="text" id="edit-name-${id}" value="${fieldValues[0]}"></td>
+            <td><input type="text" id="edit-occupation-${id}" value="${fieldValues[1]}"></td>
+            <td><input type="date" id="edit-hire_date-${id}" value="${fieldValues[2]}"></td>
+            <td><input type="number" id="edit-salary-${id}" value="${fieldValues[3]}"></td>
+            <td><input type="checkbox" id="edit-employed-${id}" ${fieldValues[4] === 'Employed' ? 'checked' : ''}></td>
+            <td>
+                <button onclick="submitEdit(${id})">Submit</button>
+                <button onclick="fetch('/fields').then(response => response.json()).then(data => location.reload())">Discard</button>
+            </td>
+        `;
+    }
+
+    // This function takes the 'input' fields from editField and does the actual PUT operation to the database.
+    function submitEdit(id) {
+        // Data retrieved from editFields's input fields.
+        const newName = document.getElementById(`edit-name-${id}`).value;
+        const newOccupation = document.getElementById(`edit-occupation-${id}`).value;
+        const newHireDate = document.getElementById(`edit-hire_date-${id}`).value;
+        const newSalary = document.getElementById(`edit-salary-${id}`).value;
+        const newEmployed = document.getElementById(`edit-employed-${id}`).checked;
+        // Make the actual PUT request to the server.
+        fetch(`/edit/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: newName, occupation: newOccupation, hire_date: newHireDate, salary: newSalary, employed: newEmployed })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+    }
+
+    // Simple delete function to remove the selected row from the database proper.
+    function deleteField(id) {
+        fetch(`/delete/${id}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById(`field-${id}`).remove();
+                }
+            });
+    }
+</script>
+</body>
+</html>
